@@ -1,0 +1,84 @@
+#! /bin/bash
+
+if [[ -z $VULTR_API_KEY ]]; then
+    echo "Please export VULTR_API_KEY"
+    exit 1
+fi
+
+DOC="/tmp/vultr-api.html"
+API="https://api.vultr.com/v1"
+
+requestType(){
+    if [[ ! -f $DOC ]]; then
+        curl -Ls -o $DOC https://vultr.com/api
+    fi
+    local id=$(echo $1|sed 's|/|\\w+|g')
+    local range=$(awk "BEGIN{start=0;OFS=\",\"} /id=\"$id\"/ {start=FNR;} END{print start,NR}" $DOC)
+    sed -n "${range}p" $DOC|grep -oE "POST|GET"|head -1
+}
+
+urlencode() {
+    local length="${#1}"
+    for (( i = 0; i < length; i++ )); do
+        local c="${1:i:1}"
+        case $c in
+            [a-zA-Z0-9.~_-]) printf "$c" ;;
+            *) printf '%s' "$c" | xxd -p -c1 | while read c; do printf '%%%s' "$c"; done ;;
+        esac
+    done
+}
+
+data=()
+for arg in "$@"; do
+    if echo "$arg"|grep -iP "^\w+[/\.]\w+$" &>/dev/null; then
+        path="${arg/./\/}"
+    elif echo "$arg"|grep -iP "^\w+=.+$" &>/dev/null; then
+        data[${#data[@]}]="$arg"
+    fi
+done
+
+reqType=$(requestType $path)
+if [[ ${#data[@]} -gt 0 ]]; then
+    if [[ $reqType == "POST" ]]; then
+        param=" "
+        for d in "${data[@]}" ; do
+            if echo $d|grep -iE "^script=" &>/dev/null; then
+                file=$(echo "$d"|grep -oP "(?<=^script=).+")
+                if [[ -s "$file" ]]; then
+                    d="script="$(cat "$file")
+                fi
+                # d=$(echo "$d"|sed -E  "s/{VULTR_API_KEY}/$VULTR_API_KEY/")
+                envArgs=($(env|grep ^VULTR|sed "s/=/='/;s/$/'/"))
+                for arg in ${envArgs[@]} ; do
+                    d=$(echo "$d"|sed "1a$arg")
+                done
+                param=$param"--data \$'"$d"' "
+            else
+                param=$param"--data '"$d"' "
+            fi
+        done
+    elif [[ $reqType == "GET" ]]; then
+        param="?"
+        for d in "${data[@]}" ; do
+            key=$(echo "$d"|grep -oP "^\w+")
+            val=$(echo "$d"|grep -oP "(?<==).+$")
+            d="$key"=$(urlencode "$val")
+            if [[ ${#param} -gt 1 ]]; then
+                param=${param}"&"${d}
+            else
+                param=${param}${d}
+            fi
+        done
+    fi
+else
+    param=""
+fi
+
+if [[ $reqType == "GET" ]]; then
+    curl -sH "API-Key: $VULTR_API_KEY" "$API/$path$param"
+elif [[ $reqType == "POST" ]]; then
+    # havt to use eval to create curl command
+    # because when POST, the number of --data optons is variable
+    # echo "curl -vH \"API-Key: $VULTR_API_KEY\" $API/$path" "$param"
+    eval "curl -sH \"API-Key: $VULTR_API_KEY\" $API/$path" "$param"
+fi

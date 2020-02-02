@@ -1,0 +1,26 @@
+#! /bin/bash
+
+keyword=()
+for arg in "$@"; do
+    if echo $arg|grep -iP "^[\w\-]+/[\w-]+$" &>/dev/null; then
+        repo=$arg
+    else
+        keyword[${#keyword[@]}]=$arg
+    fi
+done
+
+repoUrl="https://api.github.com/repos/$repo/releases/latest"
+repoUrl=($(curl -s $repoUrl|grep 'browser_download_url'|awk '{print $2}'|grep -oP '[^"]+'))
+for url in ${repoUrl[@]} ; do
+    file=$(echo $url|grep -oP '[^/]+$')
+    match=0
+    for kw in ${keyword[@]} ; do
+        if [[ $file =~ $kw ]]; then
+            match=$((($match+1)))
+        fi
+    done
+    if [[ $match -eq ${#keyword[@]} ]]; then
+        echo $file
+        curl -Lso $file $url
+    fi
+done

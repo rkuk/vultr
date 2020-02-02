@@ -1,0 +1,63 @@
+#! /bin/bash
+
+if ! type jq &>/dev/null; then
+    echo "Please install jq"
+    exit 1
+fi
+
+while getopts c:o:s:l: opt ; do
+    case "$opt" in
+        c)
+            city="$OPTARG"
+            ;;
+        o)
+            os="$OPTARG"
+            ;;
+        s)
+            snapshot="$OPTARG"
+            ;;
+        l)
+            label="$OPTARG"
+            ;;
+        *)
+            exit 1
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+
+if [[ -z $city ]]; then
+    city="Los Angeles"
+fi
+if [[ -z $os ]]; then
+    os="ubuntu 18.04"
+fi
+
+city=$(bin/vultr regions.list|jq -r ".[]|select(.name|test(\"$city\";\"i\"))|.DCID")
+plan=$(bin/vultr plans.list|jq -r '[.[]]|sort_by(.price_per_month|tonumber)[0].VPSPLANID')
+os=$(bin/vultr os.list|jq -r ".[]|select(.name|test(\"$os\";\"i\"))|.OSID")
+sshkey=$(bin/vultr sshkey.list|jq -r 'keys[0]')
+
+if [[ "$#" -gt 0 ]]; then
+    script="startup/setup_$1"
+    if ! echo "$script"|grep -P "\\.sh" &>/dev/null; then
+        script="$script".sh
+    fi
+    if [[ ! -f "$script" ]]; then
+        script="$1"
+    fi
+    script=$(bin/vultr startupscript.create name=startup script="$script"|jq '.SCRIPTID')
+elif [[ -n "$snapshot" ]]; then
+    snapshot=$(bin/vultr snapshot.list|jq -r ".[]|select(.description|test(\"$snapshot\";\"i\"))|.SNAPSHOTID")
+fi
+
+bin/vultr server.create \
+    DCID="$city" \
+    VPSPLANID="$plan" \
+    OSID="$os" \
+    SCRIPTID="$script" \
+    SNAPSHOTID="$snapshot" \
+    SSHKEYID="$sshkey" \
+    label="$label"
+
