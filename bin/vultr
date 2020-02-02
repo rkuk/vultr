@@ -47,14 +47,13 @@ if [[ ${#data[@]} -gt 0 ]]; then
                 if [[ -s "$file" ]]; then
                     d="script="$(cat "$file")
                 fi
-                # d=$(echo "$d"|sed -E  "s/{VULTR_API_KEY}/$VULTR_API_KEY/")
                 envArgs=($(env|grep ^VULTR|sed "s/=/='/;s/$/'/"))
                 for arg in ${envArgs[@]} ; do
                     d=$(echo "$d"|sed "1a$arg")
                 done
-                param=$param"--data \$'"$d"' "
+                param=$param"--data-urlencode '"$d"' "
             else
-                param=$param"--data '"$d"' "
+                param=$param"--data-urlencode '"$d"' "
             fi
         done
     elif [[ $reqType == "GET" ]]; then
