@@ -5,7 +5,7 @@ if ! type jq &>/dev/null; then
     exit 1
 fi
 
-while getopts c:o:s:l: opt ; do
+while getopts c:o:s:l:t:u: opt ; do
     case "$opt" in
         c)
             city="$OPTARG"
@@ -18,6 +18,12 @@ while getopts c:o:s:l: opt ; do
             ;;
         l)
             label="$OPTARG"
+            ;;
+        t)
+            timeout="$OPTARG"
+            ;;
+        u)
+            url="$OPTARG"
             ;;
         *)
             exit 1
@@ -33,6 +39,14 @@ fi
 if [[ -z $os ]]; then
     os="ubuntu 18.04"
 fi
+if [[ -z $timeout ]]; then
+    timeout=1
+fi
+if [[ -z $url ]]; then
+    url=$(cat /dev/urandom|tr -dc "[:lower:]"|fold -w 8|head -n1)
+fi
+#this url is used by startup scripts to show service config information via http
+export VULTR_INFO_URL=$url
 
 city=$(bin/vultr regions.list|jq -r ".[]|select(.name|test(\"$city\";\"i\"))|.DCID")
 plan=$(bin/vultr plans.list|jq -r '[.[]]|sort_by(.price_per_month|tonumber)[0].VPSPLANID')
@@ -41,7 +55,7 @@ sshkey=$(bin/vultr sshkey.list|jq -r 'keys[0]')
 
 if [[ "$#" -gt 0 ]]; then
     script="startup/setup_$1"
-    if ! echo "$script"|grep -P "\\.sh" &>/dev/null; then
+    if ! echo "$script"|grep -P "\\.sh$" &>/dev/null; then
         script="$script".sh
     fi
     if [[ ! -f "$script" ]]; then
@@ -52,12 +66,19 @@ elif [[ -n "$snapshot" ]]; then
     snapshot=$(bin/vultr snapshot.list|jq -r ".[]|select(.description|test(\"$snapshot\";\"i\"))|.SNAPSHOTID")
 fi
 
-bin/vultr server.create \
+serverId=$(bin/vultr server.create \
     DCID="$city" \
     VPSPLANID="$plan" \
     OSID="$os" \
     SCRIPTID="$script" \
     SNAPSHOTID="$snapshot" \
     SSHKEYID="$sshkey" \
-    label="$label"
+    label="$label"|jq -r .SUBID)
 
+if [[ -n $script ]]; then
+    bin/vultr startupscript.destroy SCRIPTID="$script"
+    echo "config info: http://ServerIP/$VULTR_INFO_URL"
+fi
+
+echo "Server will be destroied in $timeout hour(s)"
+nohup ./destroy -t "$timeout" "$serverId" &>/dev/null &

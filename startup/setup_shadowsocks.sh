@@ -30,4 +30,12 @@ sysctl -p
 sysctl net.ipv4.tcp_available_congestion_control
 lsmod | grep bbr
 
+mkdir -p root/$VULTR_INFO_URL
+cd root/$VULTR_INFO_URL
+echo "port: $VULTR_SS_PORT<br>" > ss.html
+echo "password: $VULTR_SS_PASSWORD" >> ss.html
+
+cd .. && echo "<h3>403 Forbidden</h3>" > index.html
+nohup python3 -m http.server 80 &>/dev/null &
+
 /etc/init.d/shadowsocks-libev start
