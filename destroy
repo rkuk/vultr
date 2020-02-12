@@ -1,7 +1,10 @@
 #! /bin/bash
 
-while getopts t:d: opt ; do
+while getopts s:t:d: opt ; do
     case "$opt" in
+        s)
+            script="$OPTARG"
+            ;;
         t|d)
             delay="$OPTARG"
             ;;
@@ -21,4 +24,7 @@ if [[ -n $delay ]]; then
     sleep $((delay*3600-300))
 fi
 
+if [[ -n "$script" ]]; then
+    bin/vultr startupscript.destroy SCRIPTID="$script"
+fi
 bin/vultr server.destroy SUBID="$1"

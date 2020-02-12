@@ -4,7 +4,7 @@ if [[ -z VULTR_SS_PORT ]]; then
     VULTR_SS_PORT=8388
 fi
 if [[ -z VULTR_SS_PASSWORD ]]; then
-    VULTR_SS_PASSWORD=$(cat /dev/urandom|tr -dc "[:alnum:]"|fold -w 10|head -n1)
+    VULTR_SS_PASSWORD=$(echo "$RANDOM$RANDOM"|sha1sum|head -c10)
 fi
 
 apt-get update -y

@@ -75,10 +75,11 @@ serverId=$(bin/vultr server.create \
     SSHKEYID="$sshkey" \
     label="$label"|jq -r .SUBID)
 
-if [[ -n $script ]]; then
-    bin/vultr startupscript.destroy SCRIPTID="$script"
-    echo "config info: http://ServerIP/$VULTR_INFO_URL"
-fi
-
 echo "Server will be destroied in $timeout hour(s)"
-nohup ./destroy -t "$timeout" "$serverId" &>/dev/null &
+if [[ -n $script ]]; then
+    echo "config info: http://ServerIP/$VULTR_INFO_URL"
+    # bin/vultr startupscript.destroy SCRIPTID="$script"
+    nohup ./destroy -t "$timeout" -s "$script" "$serverId" &>/dev/null &
+else
+    nohup ./destroy -t "$timeout" "$serverId" &>/dev/null &
+fi
