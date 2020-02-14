@@ -1,7 +1,7 @@
 #! /bin/bash
 
 if [[ -z "$VULTR_SS_PASSWORD" ]]; then
-    VULTR_SS_PASSWORD=$(echo "$RANDOM$RANDOM"|sha1sum|head -c10)
+    VULTR_SS_PASSWORD=$(date +%s%N|sha1sum|head -c10)
 fi
 
 git clone https://github.com/rkuk/vultr && cd vultr

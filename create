@@ -43,7 +43,7 @@ if [[ -z $timeout ]]; then
     timeout=1
 fi
 if [[ -z $url ]]; then
-    url=$(cat /dev/urandom|tr -dc "[:lower:]"|fold -w 8|head -n1)
+    url=$(date +%s%N|sha1sum|head -c8)
 fi
 #this url is used by startup scripts to show service config information via http
 export VULTR_INFO_URL=$url
