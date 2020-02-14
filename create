@@ -75,7 +75,13 @@ serverId=$(bin/vultr server.create \
     SSHKEYID="$sshkey" \
     label="$label"|jq -r .SUBID)
 
-serverIp=$(bin/vultr server.list|jq -r ".[\"$serverId\"].main_ip")
+until [[ -n $serverIp ]]; do
+    sleep 10
+    server=$(bin/vultr server.list|jq -cM ".[\"$serverId\"]|{status,main_ip}")
+    if [[ $(jq -r '.status' <<<"$server") == "active" ]]; then
+        serverIp=$(jq -r '.main_ip' <<<"$server")
+    fi
+done
 
 echo "Server($serverIp) will be destroied in $timeout hour(s)"
 if [[ -n $script ]]; then
