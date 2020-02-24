@@ -4,6 +4,10 @@ keyword=()
 for arg in "$@"; do
     if echo $arg|grep -iP "^[\w\-]+/[\w-]+$" &>/dev/null; then
         repo=$arg
+    elif [[ $arg =~ ^-v ]]; then
+        verbose=1
+    elif [[ $arg =~ ^-i ]]; then
+        info=1
     else
         keyword[${#keyword[@]}]=$arg
     fi
@@ -20,7 +24,13 @@ for url in ${repoUrl[@]} ; do
         fi
     done
     if [[ $match -eq ${#keyword[@]} ]]; then
-        echo $file
-        curl -Lso $file $url
+        if [[ -n $info ]]; then
+            echo $url
+        elif [[ -n $verbose ]]; then
+            curl -Lo $file $url
+        else
+            echo $file
+            curl -Lso $file $url
+        fi
     fi
 done
